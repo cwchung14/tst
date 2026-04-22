@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BS AB Training System (Secure Admin)</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Calibri,Arial;background:linear-gradient(135deg,#1abc9c,#0b3c5d);color:#222}
+#headerBar{width:100%;display:flex;justify-content:flex-end;padding:10px 20px}
+#companyLogo{max-height:60px;display:none}
+.app-container{max-width:900px;margin:30px auto;padding:20px}
+.card{background:#fff;border-radius:10px;padding:20px;box-shadow:0 6px 16px rgba(0,0,0,.15);margin-bottom:20px}
+.center{text-align:center}
+.hidden{display:none}
+button{padding:8px 16px;border-radius:6px;border:none;cursor:pointer;background:#1abc9c;color:#fff;margin:4px;font-size:.95em}
+button.secondary{background:#95a5a6}
+button.danger{background:#e74c3c}
+input,textarea,select{width:100%;padding:6px 8px;margin:4px 0 10px;border-radius:4px;border:1px solid #ccc;font-size:.95em}
+.question-block{border:1px solid #ddd;border-radius:8px;padding:10px;margin-bottom:10px;background:#fafafa}
+.test-question{margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #eee}
+.choices-list{margin-left:15px}
+.badge{padding:2px 8px;border-radius:999px;font-size:.75em;color:#fff;background:#3498db;margin-right:6px}
+table{width:100%;border-collapse:collapse;margin-top:10px;font-size:.9em}
+th,td{border:1px solid #ddd;padding:6px 8px}
+th{background:#f2f2f2}
+.pass{color:#27ae60;font-weight:bold}
+.fail{color:#e74c3c;font-weight:bold}
+#questionBuilder,#editBuilder{border:2px solid #1abc9c;padding:15px;border-radius:10px;background:#f8fdfc;margin-bottom:20px}
+#editBuilder{border-color:#e67e22;background:#fff7ec}
+.choice-row{display:flex;gap:10px;margin-bottom:8px}
+.choice-row input{flex:1}
+/* image modal */
+#imgModal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);display:none;justify-content:center;align-items:center;z-index:9999}
+#imgModal img{max-width:90%;max-height:90%;border:4px solid #fff;border-radius:8px}
+</style>
+</head>
+<body>
+
+<div id="headerBar"><img id="companyLogo"></div>
+<div class="app-container">
+
+<!-- HOME -->
+<div id="homeScreen" class="card center">
+  <h1>BS AB Training System</h1>
+  <button onclick="showTest()">Take Test</button>
+  <button onclick="showAdminLogin()">Admin</button>
+</div>
+
+<!-- NAME ENTRY -->
+<div id="nameEntryScreen" class="card hidden center">
+  <h2>Enter Your Name</h2>
+  <input id="nameInput" placeholder="Your full name">
+  <button onclick="startTest()">Start Test</button>
+  <button class="secondary" onclick="goHome()">Back</button>
+</div>
+
+<!-- TEST -->
+<div id="testScreen" class="card hidden">
+  <h2>BS AB Trainee Test</h2>
+  <div id="testQuestions"></div>
+</div>
+
+<!-- ADMIN LOGIN -->
+<div id="adminLogin" class="card hidden center">
+  <h2>Admin Login</h2>
+  <input type="password" id="adminPass" placeholder="Password">
+  <button onclick="checkPassword()">Login</button>
+  <button class="secondary" onclick="goHome()">Back</button>
+  <p id="loginError" style="color:red;display:none">Incorrect password</p>
+</div>
+<!-- ADMIN PANEL -->
+<div id="adminPanel" class="card hidden">
+  <div style="display:flex;justify-content:space-between;align-items:center">
+    <h2>Admin Panel</h2>
+    <button class="secondary" onclick="goHome()">Back</button>
+  </div>
+
+  <h3>Company Logo</h3>
+  <input type="file" id="logoUpload" accept="image/*">
+  <button onclick="saveLogo()">Upload Logo</button>
+  <button class="danger" onclick="clearLogo()">Remove Logo</button>
+
+  <hr><h3>Passing Score</h3>
+  <input type="number" id="passingScoreInput" min="0" value="1">
+  <button onclick="savePassingScore()">Save Passing Score</button>
+
+  <hr><h3>Add Question</h3>
+  <div id="questionBuilder">
+    <label>Question Type</label>
+    <select id="qType" onchange="updateQuestionType()">
+      <option value="single">Single Choice</option>
+      <option value="multi">Multiple Choice</option>
+      <option value="essay">Essay</option>
+    </select>
+
+    <label>Question Text</label>
+    <input id="qText">
+
+    <label>Image (optional)</label>
+    <input type="file" id="qImage" accept="image/*">
+
+    <div id="choicesSection">
+      <h4>Choices</h4>
+      <div id="choicesContainer"></div>
+      <button onclick="addChoice()">+ Add Choice</button>
+
+      <label>Correct Answer</label>
+      <select id="qCorrect"></select>
+    </div>
+
+    <button onclick="saveQuestion()">Save Question</button>
+  </div>
+
+  <!-- EDIT BUILDER -->
+  <div id="editBuilder" class="hidden">
+    <h3>Edit Question</h3>
+
+    <label>Question Type</label>
+    <select id="editType" onchange="updateEditType()">
+      <option value="single">Single Choice</option>
+      <option value="multi">Multiple Choice</option>
+      <option value="essay">Essay</option>
+    </select>
+
+    <label>Question Text</label>
+    <input id="editText">
+
+    <label>Image (optional)</label>
+    <input type="file" id="editImage" accept="image/*">
+    <img id="editPreview" style="max-width:200px;display:none;margin:10px 0">
+
+    <div id="editChoicesSection">
+      <h4>Choices</h4>
+      <div id="editChoicesContainer"></div>
+      <button onclick="addEditChoice()">+ Add Choice</button>
+
+      <label>Correct Answer</label>
+      <select id="editCorrect"></select>
+    </div>
+
+    <button onclick="saveEditedQuestion()">Save Changes</button>
+    <button class="secondary" onclick="cancelEdit()">Cancel</button>
+  </div>
+
+  <hr><h3>Change Admin Password</h3>
+  <p style="font-size:.9em;margin-top:0">Change admin password (requires current password). The page stores only a salted SHA-256 hash (no plaintext). To set the initial hash, run the helper command I provide after the file is saved locally.</p>
+  <input id="currentAdminPass" type="password" placeholder="Current password">
+  <input id="newAdminPass" type="password" placeholder="New password">
+  <button onclick="(async()=>{ await changeAdminPassword(document.getElementById('currentAdminPass').value, document.getElementById('newAdminPass').value); document.getElementById('currentAdminPass').value=''; document.getElementById('newAdminPass').value=''; })()">Change Password</button>
+
+  <hr><h3>Question Bank</h3>
+  <div id="questionsList"></div>
+
+  <hr><h3>Results</h3>
+  <div id="resultsTable"></div>
+</div>
+
+</div> <!-- end app-container -->
+
+<!-- IMAGE MODAL -->
+<div id="imgModal" onclick="closeImgModal()">
+  <img id="imgModalContent">
+</div>
+<!-- PART 3/4: JS (Admin + Builder + Edit + Storage + SHA-256 verification) -->
+<script>
+/* STORAGE KEYS */
+const QUESTIONS_KEY='bsab_questions_v4';
+const SUBMISSIONS_KEY='bsab_submissions_v4';
+const PASSING_SCORE_KEY='bsab_passing_v4';
+const LOGO_KEY='bsab_logo_v4';
+const ADMIN_HASH_KEY='bsab_admin_hash_v4'; // stores salt|hexhash in localStorage
+
+/* FIXED SALT (you chose fixed salt) */
+const FIXED_SALT = 'fixed-salt-2026-09-01'; // fixed salt string (not secret)
+
+/* IMPORTANT:
+   This file does NOT contain the plaintext password.
+   The expected stored value is: salt + '|' + hex_sha256(salt + '|' + password)
+   The code below will compute the hash of the entered password and compare.
+   To initialize the admin password (one-time), run the helper command provided after PART 4.
+*/
+
+/* GLOBALS */
+let questions=[];
+let submissions=[];
+let passingScore=1;
+let traineeNameGlobal="";
+let currentQuestionIndex=0;
+let traineeAnswers={};
+let choiceCount=0;
+let editingId=null;
+let editChoiceCount=0;
+
+/* INIT LOAD */
+function loadAll(){
+  questions = JSON.parse(localStorage.getItem(QUESTIONS_KEY)||'[]');
+  submissions = JSON.parse(localStorage.getItem(SUBMISSIONS_KEY)||'[]');
+  passingScore = Number(localStorage.getItem(PASSING_SCORE_KEY))||1;
+  document.getElementById('passingScoreInput').value = passingScore;
+}
+function loadLogo(){
+  const l = localStorage.getItem(LOGO_KEY);
+  const img = document.getElementById('companyLogo');
+  if(l){ img.src=l; img.style.display='block'; }
+  else img.style.display='none';
+}
+loadAll();
+loadLogo();
+
+/* NAVIGATION */
+function hideAll(){
+  ['homeScreen','nameEntryScreen','testScreen','adminLogin','adminPanel']
+    .forEach(id=>document.getElementById(id).classList.add('hidden'));
+}
+function goHome(){
+  hideAll();
+  document.getElementById('homeScreen').classList.remove('hidden');
+}
+function showTest(){
+  hideAll();
+  document.getElementById('nameEntryScreen').classList.remove('hidden');
+}
+function startTest(){
+  const name=document.getElementById('nameInput').value.trim();
+  if(!name){ alert("Enter your name."); return; }
+  traineeNameGlobal=name;
+  currentQuestionIndex=0;
+  traineeAnswers={};
+  hideAll();
+  document.getElementById('testScreen').classList.remove('hidden');
+  renderSingleQuestion();
+}
+
+/* SHA-256 helper: returns hex string */
+async function sha256Hex(str){
+  const enc = new TextEncoder();
+  const data = enc.encode(str);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* Admin hash helpers: stored as "salt|hexhash" in localStorage under ADMIN_HASH_KEY */
+function getStoredAdminHash(){
+  return localStorage.getItem(ADMIN_HASH_KEY) || null;
+}
+function setStoredAdminHash(salt, hexHash){
+  localStorage.setItem(ADMIN_HASH_KEY, salt + '|' + hexHash);
+}
+
+/* Change admin password (requires current password). This updates stored hash in localStorage. */
+async function changeAdminPassword(currentPlain, newPlain){
+  if(!currentPlain || !newPlain){
+    alert('Provide both current and new passwords.');
+    return false;
+  }
+  const stored = getStoredAdminHash();
+  if(!stored){
+    alert('Admin password not initialized. Run the one-time helper to set the initial password.');
+    return false;
+  }
+  const [salt, storedHex] = stored.split('|');
+  const currentHex = await sha256Hex(salt + '|' + currentPlain);
+  if(currentHex !== storedHex){
+    alert('Current password is incorrect.');
+    return false;
+  }
+  const newHex = await sha256Hex(salt + '|' + newPlain);
+  setStoredAdminHash(salt, newHex);
+  alert('Admin password changed successfully.');
+  return true;
+}
+
+/* ADMIN LOGIN (compares hash) */
+function showAdminLogin(){
+  hideAll();
+  document.getElementById('adminLogin').classList.remove('hidden');
+  document.getElementById('adminPass').value='';
+  document.getElementById('loginError').style.display='none';
+}
+document.getElementById('adminPass').addEventListener('keydown',e=>{
+  if(e.key==='Enter') checkPassword();
+});
+async function checkPassword(){
+  const entered = document.getElementById('adminPass').value || '';
+  const stored = getStoredAdminHash();
+  if(!stored){
+    alert('Admin password not initialized. Run the one-time helper (see instructions) to set the initial password.');
+    return;
+  }
+  const [salt, storedHex] = stored.split('|');
+  const hex = await sha256Hex(salt + '|' + entered);
+  if(hex === storedHex){
+    document.getElementById('adminPass').value = '';
+    hideAll();
+    document.getElementById('adminPanel').classList.remove('hidden');
+    renderQuestionsList();
+    renderResults();
+  } else {
+    document.getElementById('loginError').style.display='block';
+  }
+}
+
+/* LOGO UPLOAD */
+function saveLogo(){
+  const f=document.getElementById('logoUpload').files[0];
+  if(!f){ alert('Select an image'); return; }
+  const r=new FileReader();
+  r.onload=e=>{
+    localStorage.setItem(LOGO_KEY,e.target.result);
+    loadLogo();
+    alert('Logo saved');
+  };
+  r.readAsDataURL(f);
+}
+function clearLogo(){
+  localStorage.removeItem(LOGO_KEY);
+  loadLogo();
+  alert('Logo removed');
+}
+
+/* ADD QUESTION */
+function updateQuestionType(){
+  document.getElementById('choicesSection').style.display =
+    (document.getElementById('qType').value==='essay') ? 'none' : 'block';
+}
+function addChoice(){
+  const c=document.getElementById('choicesContainer');
+  const id=choiceCount++;
+  const row=document.createElement('div');
+  row.className='choice-row';
+  row.id='choice_'+id;
+  row.innerHTML=
+    `<input id="choiceText_${id}" placeholder="Choice text">
+     <button class="danger" onclick="removeChoice(${id})">X</button>`;
+  c.appendChild(row);
+  refreshCorrectDropdown();
+}
+function removeChoice(id){
+  const el=document.getElementById('choice_'+id);
+  if(el) el.remove();
+  refreshCorrectDropdown();
+}
+function refreshCorrectDropdown(){
+  const dd=document.getElementById('qCorrect');
+  dd.innerHTML='';
+  document.querySelectorAll('[id^="choiceText_"]').forEach((c,i)=>{
+    const o=document.createElement('option');
+    o.value=i;
+    o.textContent='Choice '+(i+1);
+    dd.appendChild(o);
+  });
+}
+function saveQuestion(){
+  const type=document.getElementById('qType').value;
+  const text=document.getElementById('qText').value.trim();
+  if(!text){ alert('Enter question text'); return; }
+
+  const img=document.getElementById('qImage').files[0];
+  if(img){
+    const r=new FileReader();
+    r.onload=e=>finalize(e.target.result);
+    r.readAsDataURL(img);
+  } else finalize(null);
+
+  function finalize(imageData){
+    let choices=[],correct=null;
+    if(type!=='essay'){
+      document.querySelectorAll('[id^="choiceText_"]').forEach((c,i)=>{
+        choices.push({id:i,text:c.value.trim()});
+      });
+      if(!choices.length){ alert('Add at least one choice'); return; }
+      correct = Number(document.getElementById('qCorrect').value);
+    }
+    questions.push({
+      id:Date.now(),
+      type,text,image:imageData,
+      choices,correct
+    });
+    localStorage.setItem(QUESTIONS_KEY,JSON.stringify(questions));
+    renderQuestionsList();
+
+    document.getElementById('qText').value='';
+    document.getElementById('qImage').value='';
+    document.getElementById('choicesContainer').innerHTML='';
+    choiceCount=0;
+    refreshCorrectDropdown();
+    alert('Question saved');
+  }
+}
+
+/* EDIT QUESTION */
+function editQuestion(id){
+  editingId=id;
+  const q=questions.find(x=>x.id===id);
+
+  document.getElementById('editBuilder').classList.remove('hidden');
+  document.getElementById('editType').value=q.type;
+  document.getElementById('editText').value=q.text;
+
+  if(q.image){
+    editPreview.src=q.image;
+    editPreview.style.display='block';
+  } else editPreview.style.display='none';
+
+  const c=document.getElementById('editChoicesContainer');
+  c.innerHTML='';
+  editChoiceCount=0;
+
+  if(q.type!=='essay'){
+    q.choices.forEach((ch,i)=>{
+      const row=document.createElement('div');
+      row.className='choice-row';
+      row.id='editChoice_'+editChoiceCount;
+      row.innerHTML=
+        `<input id="editChoiceText_${editChoiceCount}" value="${ch.text}">
+         <button class="danger" onclick="removeEditChoice(${editChoiceCount})">X</button>`;
+      c.appendChild(row);
+      editChoiceCount++;
+    });
+    refreshEditCorrectDropdown(q.correct);
+    document.getElementById('editChoicesSection').style.display='block';
+  } else {
+    document.getElementById('editChoicesSection').style.display='none';
+  }
+}
+function updateEditType(){
+  document.getElementById('editChoicesSection').style.display =
+    (document.getElementById('editType').value==='essay') ? 'none' : 'block';
+}
+function addEditChoice(){
+  const c=document.getElementById('editChoicesContainer');
+  const id=editChoiceCount++;
+  const row=document.createElement('div');
+  row.className='choice-row';
+  row.id='editChoice_'+id;
+  row.innerHTML=
+    `<input id="editChoiceText_${id}" placeholder="Choice text">
+     <button class="danger" onclick="removeEditChoice(${id})">X</button>`;
+  c.appendChild(row);
+  refreshEditCorrectDropdown();
+}
+function removeEditChoice(id){
+  const el=document.getElementById('editChoice_'+id);
+  if(el) el.remove();
+  refreshEditCorrectDropdown();
+}
+function refreshEditCorrectDropdown(sel=0){
+  const dd=document.getElementById('editCorrect');
+  dd.innerHTML='';
+  document.querySelectorAll('[id^="editChoiceText_"]').forEach((c,i)=>{
+    const o=document.createElement('option');
+    o.value=i;
+    o.textContent='Choice '+(i+1);
+    if(i===sel) o.selected=true;
+    dd.appendChild(o);
+  });
+}
+function saveEditedQuestion(){
+  const q=questions.find(x=>x.id===editingId);
+  q.type=document.getElementById('editType').value;
+  q.text=document.getElementById('editText').value.trim();
+
+  const img=document.getElementById('editImage').files[0];
+  if(img){
+    const r=new FileReader();
+    r.onload=e=>finalize(e.target.result);
+    r.readAsDataURL(img);
+  } else finalize(null);
+
+  function finalize(imageData){
+    if(imageData!==null) q.image=imageData;
+
+    if(q.type!=='essay'){
+      q.choices=[];
+      document.querySelectorAll('[id^="editChoiceText_"]').forEach((c,i)=>{
+        q.choices.push({id:i,text:c.value.trim()});
+      });
+      q.correct = Number(document.getElementById('editCorrect').value);
+    } else {
+      q.choices=[];
+      q.correct=null;
+    }
+
+    localStorage.setItem(QUESTIONS_KEY,JSON.stringify(questions));
+    renderQuestionsList();
+    cancelEdit();
+    alert('Question updated');
+  }
+}
+function cancelEdit(){
+  editingId=null;
+  document.getElementById('editBuilder').classList.add('hidden');
+}
+
+/* QUESTION LIST */
+function renderQuestionsList(){
+  const c=document.getElementById('questionsList');
+  c.innerHTML='';
+  if(!questions.length){
+    c.innerHTML='<p>No questions yet.</p>';
+    return;
+  }
+  questions.forEach((q,i)=>{
+    let h=
+      `<div class="question-block">
+         <div><span class="badge">Q${i+1}</span>${escapeHtml(q.text)} (${q.type})</div>`;
+    if(q.image){
+      h+=`<img src="${q.image}" style="max-width:200px;cursor:pointer;margin:10px 0"
+            onclick="enlargeImage('${q.image}')">`;
+    }
+    if(q.type!=='essay'){
+      h+='<div class="choices-list">';
+      q.choices.forEach((ch,idx)=>{
+        const mark=(idx===q.correct)?' <strong>(correct)</strong>':'';
+        h+=`<div>${idx+1}. ${escapeHtml(ch.text)}${mark}</div>`;
+      });
+      h+='</div>';
+    }
+    h+=
+      `<button onclick="editQuestion(${q.id})">Edit</button>
+       <button class="danger" onclick="deleteQuestion(${q.id})">Delete</button>
+       </div>`;
+    c.innerHTML+=h;
+  });
+}
+function deleteQuestion(id){
+  if(!confirm('Delete this question?')) return;
+  questions = questions.filter(q=>q.id!==id);
+  localStorage.setItem(QUESTIONS_KEY,JSON.stringify(questions));
+  renderQuestionsList();
+}
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g,c=>(
+    {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+  ));
+}
+</script>
+<!-- PART 4/4: JS (Test Engine + Results + Delete Record + Modal Zoom + Init) -->
+<script>
+/* TEST ENGINE — ONE QUESTION PER PAGE */
+function renderSingleQuestion(){
+  const c=document.getElementById('testQuestions');
+  c.innerHTML='';
+
+  if(!questions.length){
+    c.innerHTML='<p>No questions available.</p>';
+    return;
+  }
+
+  const q=questions[currentQuestionIndex];
+
+  let h=
+    `<div class="test-question">
+       <strong>Question ${currentQuestionIndex+1} of ${questions.length}</strong><br>
+       ${escapeHtml(q.text)}
+     </div>`;
+
+  if(q.image){
+    h+=`<img src="${q.image}" 
+             style="max-width:200px;cursor:pointer;margin:10px 0"
+             onclick="enlargeImage('${q.image}')">`;
+  }
+
+  if(q.type==='essay'){
+    h+=`<textarea id="answerBox">${traineeAnswers[q.id]||''}</textarea>`;
+  } else {
+    h+='<div class="choices-list">';
+    q.choices.forEach((ch,i)=>{
+      const checked=(traineeAnswers[q.id]===i)?"checked":"";
+      const t=q.type==='multi'?'checkbox':'radio';
+      h+=`<label><input type="${t}" name="answer" value="${i}" ${checked}> 
+           ${escapeHtml(ch.text)}</label><br>`;
+    });
+    h+='</div>';
+  }
+
+  h+='<div style="margin-top:20px">';
+  if(currentQuestionIndex>0)
+    h+='<button onclick="prevQuestion()">Previous</button>';
+  if(currentQuestionIndex<questions.length-1)
+    h+='<button onclick="nextQuestion()">Next</button>';
+  else
+    h+='<button onclick="submitTest()">Submit Test</button>';
+  h+='</div>';
+
+  c.innerHTML=h;
+}
+
+function saveCurrentAnswer(){
+  const q=questions[currentQuestionIndex];
+  if(q.type==='essay'){
+    traineeAnswers[q.id]=document.getElementById('answerBox').value;
+  } else {
+    const sel=document.querySelector('input[name="answer"]:checked');
+    traineeAnswers[q.id]=sel?Number(sel.value):null;
+  }
+}
+
+function nextQuestion(){
+  saveCurrentAnswer();
+  if(currentQuestionIndex<questions.length-1) currentQuestionIndex++;
+  renderSingleQuestion();
+}
+
+function prevQuestion(){
+  saveCurrentAnswer();
+  if(currentQuestionIndex>0) currentQuestionIndex--;
+  renderSingleQuestion();
+}
+
+/* SUBMIT TEST */
+function submitTest(){
+  saveCurrentAnswer();
+
+  const name=traineeNameGlobal.trim();
+  if(!name){ alert('Name missing.'); return; }
+
+  let score=0,total=0;
+
+  questions.forEach(q=>{
+    if(q.type==='essay') return;
+    total++;
+    const ans=traineeAnswers[q.id];
+    if(ans===q.correct) score++;
+  });
+
+  submissions.push({
+    id:Date.now(),
+    name,
+    timestamp:new Date().toLocaleString(),
+    score,
+    total
+  });
+
+  localStorage.setItem(SUBMISSIONS_KEY,JSON.stringify(submissions));
+
+  const pct = total ? ((score/total)*100).toFixed(1) : '0.0';
+  alert(`Your score: ${score} / ${total} (${pct}%)`);
+
+  renderResults();
+  goHome();
+}
+
+/* RESULTS (with delete + percentage) */
+function renderResults(){
+  const c=document.getElementById('resultsTable');
+  c.innerHTML='';
+
+  if(!submissions.length){
+    c.innerHTML='<p>No submissions yet.</p>';
+    return;
+  }
+
+  let h=
+    `<table>
+       <thead>
+         <tr>
+           <th>Name</th>
+           <th>Time</th>
+           <th>Score</th>
+           <th>%</th>
+           <th>Status</th>
+           <th>Delete</th>
+         </tr>
+       </thead>
+       <tbody>`;
+
+  submissions.forEach(s=>{
+    const pct = s.total ? ((s.score/s.total)*100).toFixed(1) : '0.0';
+    const pass = s.score >= passingScore;
+    const cls = pass ? 'pass' : 'fail';
+    const st = pass ? 'PASS' : 'FAIL';
+
+    h+=
+      `<tr>
+         <td>${escapeHtml(s.name)}</td>
+         <td>${escapeHtml(s.timestamp)}</td>
+         <td>${s.score} / ${s.total}</td>
+         <td>${pct}%</td>
+         <td class="${cls}">${st}</td>
+         <td><button class="danger" onclick="deleteSubmission(${s.id})">X</button></td>
+       </tr>`;
+  });
+
+  h+='</tbody></table>';
+  c.innerHTML=h;
+}
+
+function deleteSubmission(id){
+  if(!confirm("Delete this record?")) return;
+  submissions = submissions.filter(s=>s.id!==id);
+  localStorage.setItem(SUBMISSIONS_KEY,JSON.stringify(submissions));
+  renderResults();
+}
+
+/* IMAGE MODAL ZOOM */
+function enlargeImage(src){
+  document.getElementById("imgModalContent").src = src;
+  document.getElementById("imgModal").style.display = "flex";
+}
+function closeImgModal(){
+  document.getElementById("imgModal").style.display = "none";
+}
+
+/* PASSING SCORE */
+function savePassingScore(){
+  const v=Number(document.getElementById('passingScoreInput').value);
+  if(isNaN(v)||v<0){ alert('Invalid passing score'); return; }
+  passingScore=v;
+  localStorage.setItem(PASSING_SCORE_KEY,passingScore);
+  renderResults();
+  alert('Passing score saved');
+}
+
+/* INITIAL STATE */
+goHome();
+
+/* ONE-TIME LOCAL INITIALIZER (paste into the browser console on the page)
+   - This helper prompts you for the initial admin password locally.
+   - It computes SHA-256(FIXED_SALT + '|' + enteredPassword) and stores
+     salt|hexhash in localStorage under ADMIN_HASH_KEY.
+   - The password is NOT written into the page or console output.
+   - Run this exactly once. */
+
+(async function initAdminSecure(){
+  if(localStorage.getItem('bsab_admin_hash_v4')){
+    console.log('Admin hash already present in localStorage. Initialization skipped.');
+    return;
+  }
+  try {
+    const pwd = prompt('Enter initial admin password (will not be stored in the page):');
+    if(!pwd){
+      console.log('No password entered. Initialization cancelled.');
+      return;
+    }
+    const salt = FIXED_SALT; // uses the FIXED_SALT value already in the page script
+    const enc = new TextEncoder();
+    const data = enc.encode(salt + '|' + pwd);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hex = hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+    localStorage.setItem('bsab_admin_hash_v4', salt + '|' + hex);
+    console.log('Admin initialized locally. You can now log in with the password you entered.');
+  } catch (err) {
+    console.error('Initialization failed', err);
+  }
+})();
+  const salt = FIXED_SALT;
+  const enc = new TextEncoder();
+  const data = enc.encode(salt + '|' + pwd);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hex = hashArray.map(b => b.toString(16).padStart(2,'0')).join('');
+  localStorage.setItem(ADMIN_HASH_KEY, salt + '|' + hex);
+  console.log('Admin initialized locally. You can now log in with the configured password.');
+})();
+
+</script>
+</body>
+</html>
